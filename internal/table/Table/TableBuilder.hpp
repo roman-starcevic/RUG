@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <stdexcept>
 #include <cstring>
+#include <map>
+#include <utility>
 
 #include "../TableIR/TableIR.hpp"
 #include "../../common/CFGTypes/CFGTypes.hpp"
@@ -63,29 +65,28 @@ static inline bool same_action( const t_action& a, const t_action& b )
 /*
 	Find the most common action in one complete ACTION ROW
 
-	there are only 256 terminals (CFG_END + 1) so this simple search algo is acceptable
+	Count the 257 terminals (CFG_END + 1) once, then select the first maximum.
 	this runs at generation, never at parser runtime
 */
 
 static inline t_action find_default_action( const TableIR& ir, size_t state )
 {
-	t_action	best;
-	size_t		best_count;
+	typedef std::pair<e_action_type, size_t> t_action_key;
+	std::map<t_action_key, size_t> counts;
 
-	best = ir.action(state, 0);
-	best_count = 0;
-
-	// sym == candidate
-	for (t_id_symbol sym = 0; sym <= CFG_END; sym++)
+	for (t_id_symbol terminal = 0; terminal <= CFG_END; terminal++)
 	{
-		const t_action&	action = ir.action(state, sym);
-		size_t			count = 0;
+		const t_action& action = ir.action(state, terminal);
+		counts[t_action_key(action.type, action.value)]++;
+	}
 
-		for (t_id_symbol terminal = 0; terminal <= CFG_END; terminal++)
-		{
-			if (same_action(action, ir.action(state, terminal)))
-				count++;
-		}
+	t_action best = ir.action(state, 0);
+	size_t best_count = 0;
+	// Traverse in terminal order to preserve the original tie-breaking rule.
+	for (t_id_symbol terminal = 0; terminal <= CFG_END; terminal++)
+	{
+		const t_action& action = ir.action(state, terminal);
+		size_t count = counts.find(t_action_key(action.type, action.value))->second;
 		if (count > best_count)
 		{
 			best = action;
