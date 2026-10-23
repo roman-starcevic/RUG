@@ -5,6 +5,15 @@
 
 bool	ABNFValidator::validate( void )
 {
+	if (m_ir_.rule_count() == 0)
+	{
+		t_source_span span;
+		span.offset = 0;
+		span.len = 0;
+		m_diag_.error(span, "grammar contains no rules");
+		return (false);
+	}
+
 	std::map<std::string, size_t>	rules;
 
 	validate_rules(rules);
